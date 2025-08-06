@@ -1,0 +1,324 @@
+---
+alwaysApply: true
+---
+
+# Project Structure
+
+This document outlines the recommended project structure. Adhering to these conventions will help maintain a clean, scalable, and easy-to-navigate codebase.
+
+## Directory Overview
+
+```
+review-frontend/
+├── .vscode/                  # Workspace settings (e.g., for recommended extensions)
+├── public/                   # Static assets (images, fonts, etc.)
+├── src/
+│   ├── app/                  # Next.js App Router: pages, layouts, and route handlers
+│   │   ├── (main)/           # Example route group for authenticated app pages
+│   │   │   ├── dashboard/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── components/ # Components specific to the dashboard
+│   │   │   │       └── Chart.tsx
+│   │   │   └── layout.tsx
+│   │   ├── api/              # API routes (route handlers)
+│   │   └── layout.tsx        # Root layout
+│   │
+│   ├── components/           # Shared components used across the application
+│   │   ├── ui/               # Basic, reusable UI elements (Button, Input, Card)
+│   │   └── common/           # More complex components composed of UI elements
+│   │
+│   ├── lib/                  # Utility functions, helpers, and constants
+│   ├── hooks/                # Custom React hooks
+│   ├── services/             # Data fetching logic (e.g., API clients)
+│   ├── store/                # State management (Zustand, Redux, etc.)
+│   └── types/                # Global TypeScript types and interfaces
+│
+├── .editorconfig             # Consistent editor settings
+├── .eslintrc.js              # ESLint configuration
+├── next.config.mjs           # Next.js configuration
+└── tsconfig.json             # TypeScript configuration
+```
+
+## Key Principles
+
+1.  **Feature-Colocation in `app/`**: For any given page or route in the `app` directory, its specific components should be co-located within a `components` sub-directory. This keeps feature-specific logic self-contained.
+
+2.  **Shared Components in `src/components/`**:
+
+    - `src/components/ui/`: Contains highly reusable, "dumb" UI components like `Button`, `Input`, `Dialog`. These should be generic and application-agnostic.
+    - `src/components/common/`: Contains components that are shared across multiple features but might have more business logic than simple UI components.
+
+3.  **Route Groups `(...)`**: Use route groups in the `app` directory to organize sections of your application (e.g., `(auth)`, `(marketing)`, `(main)`) without affecting the URL structure.
+
+4.  **Clear Separation of Concerns**:
+    - `lib`: For pure functions and utilities.
+    - `hooks`: For custom React hook logic.
+    - `services`: For abstracting data-fetching.
+    - `store`: For global state.
+    - `types`: For shared type definitions.
+
+By following this structure, the project will be easier to understand and maintain as it grows.
+
+## API Route Structure
+
+API routes are defined using Route Handlers within the `src/app/api/` directory. This approach allows you to create backend endpoints for your application.
+
+### 1. Basic Structure
+
+Each API endpoint is a `route.ts` (or `.js`) file that exports functions corresponding to HTTP methods.
+
+**Example: `src/app/api/users/route.ts`**
+
+```typescript
+// src/app/api/users/route.ts
+import { NextResponse } from "next/server";
+
+// Handles GET requests to /api/users
+export async function GET() {
+  // Logic to fetch users from a database
+  const users = [{ id: 1, name: "John Doe" }];
+  return NextResponse.json({ users });
+}
+
+// Handles POST requests to /api/users
+export async function POST(request: Request) {
+  // Logic to create a new user
+  const data = await request.json();
+  return NextResponse.json({ message: "User created", data }, { status: 201 });
+}
+```
+
+### 2. Dynamic API Routes
+
+For dynamic segments in your API paths (e.g., fetching a user by ID), use brackets `[]` in the directory name.
+
+**Example: `src/app/api/users/[userId]/route.ts`**
+
+```typescript
+// src/app/api/users/[userId]/route.ts
+import { NextResponse } from "next/server";
+
+export async function GET(
+  request: Request,
+  { params }: { params: { userId: string } }
+) {
+  const userId = params.userId;
+  // Logic to fetch user by ID
+  return NextResponse.json({ userId, name: `User ${userId}` });
+}
+```
+
+This structure helps in keeping your API clean, organized, and easy to maintain.
+
+## Database Connection
+
+This project uses PostgreSQL for the database. Follow these steps to connect your local environment.
+
+### 1. Environment Variables
+
+Create a `.env.local` file in the root of the project. This file is for local development and should not be committed to version control. Add your database credentials to this file:
+
+```bash
+# .env.local
+POSTGRES_HOST=your_host
+POSTGRES_USER=your_username
+POSTGRES_PASSWORD=your_password
+POSTGRES_DATABASE=your_dbname
+POSTGRES_PORT=5432 # Or your custom port
+```
+
+**Note:** You must restart the development server after creating or modifying the `.env.local` file.
+
+### 2. Connection Utility
+
+The database connection is managed by a connection pool located at `src/lib/db.ts`. This utility reads the environment variables from `.env.local` to establish the connection.
+
+### 3. Testing the Connection
+
+To verify that your database connection is configured correctly, run the application and navigate to the `/api/db-test` endpoint. A successful connection will return a JSON object with the current timestamp from the database.
+
+# 🔐 Authentication System Guide
+
+## Overview
+
+This project implements a comprehensive authentication system using NextAuth.js v5, PostgreSQL, and Next.js 15. The system provides secure user registration, login, and session management with JWT tokens.
+
+## 🌐 Authentication Routes
+
+### ✅ Correct Routes (Use These)
+
+- **Sign In**: `http://localhost:3000/auth/login`
+- **Registration**: `http://localhost:3000/auth/register`
+- **Dashboard**: `http://localhost:3000/dashboard` (protected)
+
+### ❌ Deprecated Routes (Never Use)
+
+- ~~`/auth/signin`~~ - Removed
+- ~~`/auth/signup`~~ - Removed
+
+## 📁 File Structure
+
+```
+src/
+├── app/
+│   ├── auth/
+│   │   ├── login/page.tsx        # 🔐 Sign-in page
+│   │   └── register/page.tsx     # 📝 Registration page
+│   ├── dashboard/page.tsx        # 🛡️ Protected dashboard
+│   └── api/auth/
+│       ├── [...nextauth]/route.ts    # NextAuth.js handlers
+│       └── register/route.ts         # Registration API
+├── components/
+│   ├── auth/AuthButton.tsx           # Authentication button
+│   └── providers/SessionProvider.tsx # Session context
+├── lib/
+│   ├── auth.ts                       # NextAuth.js configuration
+│   └── db.ts                         # Database connection
+├── middleware.ts                     # Route protection
+└── types/auth.ts                     # TypeScript definitions
+```
+
+## 🔄 Authentication Flow
+
+### Registration Process
+
+1. **User visits** `/auth/register`
+2. **Fills form** with name, email, password
+3. **Client validation** checks password confirmation
+4. **API call** to `/api/auth/register`
+5. **Server validation** and user creation
+6. **Redirect** to `/auth/login` on success
+
+### Login Process
+
+1. **User visits** `/auth/login`
+2. **Enters credentials** (email, password)
+3. **NextAuth.js** validates via credentials provider
+4. **JWT session** created and stored
+5. **Redirect** to `/dashboard` on success
+
+### Route Protection
+
+- **Middleware** checks JWT tokens for protected routes
+- **Unauthenticated users** → redirected to `/auth/login`
+- **Authenticated users** on auth pages → redirected to `/dashboard`
+
+## 🛠️ Implementation Details
+
+### NextAuth.js Configuration (`src/lib/auth.ts`)
+
+```typescript
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    CredentialsProvider({
+      /* ... */
+    }),
+  ],
+  session: { strategy: "jwt" },
+  pages: { signIn: "/auth/login" },
+  callbacks: {
+    /* JWT and session callbacks */
+  },
+});
+```
+
+### Middleware Protection (`src/middleware.ts`)
+
+```typescript
+const protectedRoutes = ["/dashboard", "/profile"];
+const authRoutes = ["/auth/login", "/auth/register"];
+// Uses getToken() for Edge Runtime compatibility
+```
+
+### Database Schema
+
+- **users**: User accounts with hashed passwords
+- **accounts**: OAuth account linking (future use)
+- **sessions**: Active user sessions (not used with JWT)
+- **verification_tokens**: Email verification (future use)
+
+## 🎯 Usage Guidelines
+
+### For Developers
+
+1. **Always use** `/auth/login` and `/auth/register` routes
+2. **Import auth functions** from `@/lib/auth`
+3. **Use SessionProvider** wrapper in root layout
+4. **Protect routes** via middleware configuration
+5. **Handle errors** with user-friendly messages
+
+### For Navigation
+
+```tsx
+// ✅ Correct
+<Link href="/auth/login">Sign In</Link>
+<Link href="/auth/register">Sign Up</Link>
+
+// ❌ Wrong
+<Link href="/auth/signin">Sign In</Link>
+<Link href="/auth/signup">Sign Up</Link>
+```
+
+### For API Integration
+
+```typescript
+// Registration
+const response = await fetch("/api/auth/register", {
+  method: "POST",
+  body: JSON.stringify({ name, email, password }),
+});
+
+// Login (use NextAuth.js)
+const result = await signIn("credentials", {
+  email,
+  password,
+  redirect: false,
+});
+```
+
+## 🔧 Environment Setup
+
+Required environment variables in `.env.local`:
+
+```bash
+# Database
+POSTGRES_HOST=localhost
+POSTGRES_USER=your_username
+POSTGRES_PASSWORD=your_password
+POSTGRES_DATABASE=your_dbname
+POSTGRES_PORT=5432
+
+# NextAuth.js
+NEXTAUTH_SECRET=your_secret_key
+NEXTAUTH_URL=http://localhost:3000
+
+## Google OAuth Configuration
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+```
+
+## 🚀 Getting Started
+
+1. **Set up database** using `src/lib/schema.sql`
+2. **Configure environment** variables in `.env.local`
+3. **Install dependencies** with `npm install`
+4. **Start development** server with `npm run dev`
+5. **Access authentication** at:
+   - Sign in: http://localhost:3000/auth/login
+   - Register: http://localhost:3000/auth/register
+
+## 🛡️ Security Features
+
+- **Password hashing** with bcryptjs (12 rounds)
+- **JWT tokens** for session management
+- **CSRF protection** via NextAuth.js
+- **SQL injection prevention** with parameterized queries
+- **Route protection** via middleware
+- **Error handling** without exposing sensitive data
+
+## 📝 Notes
+
+- Uses **JWT sessions only** (no database sessions for Edge Runtime compatibility)
+- **Middleware uses getToken()** instead of auth() for Edge Runtime
+- **PostgreSQL adapter removed** to avoid Edge Runtime conflicts
+- **All routes standardized** to use `/auth/login` and `/auth/register`
