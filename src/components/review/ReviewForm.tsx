@@ -306,8 +306,8 @@ export default function ReviewForm({ business }: { business: Business }) {
           {rating >= 4 && business.google_maps_url && (
             <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-sm text-blue-800">
-                🌟 Great rating! We've copied your feedback to help you leave a Google review. 
-                You'll be redirected to Google Reviews where you can paste your feedback.
+                🌟 Great rating! We&apos;ve copied your feedback to help you leave a Google review. 
+                You&apos;ll be redirected to Google Reviews where you can paste your feedback.
               </p>
             </div>
           )}
