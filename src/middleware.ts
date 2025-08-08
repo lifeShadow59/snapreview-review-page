@@ -25,6 +25,11 @@ const authRoutes = ["/auth/login", "/auth/register"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Skip authentication for review pages (public access)
+  if (pathname.startsWith("/review/")) {
+    return NextResponse.next();
+  }
+
   // Get token using NextAuth JWT (compatible with Edge Runtime)
   const token = await getToken({
     req: request,

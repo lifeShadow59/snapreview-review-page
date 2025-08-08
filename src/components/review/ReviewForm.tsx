@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Business {
   id: string;
   name: string;
   business_type_name?: string;
+  google_maps_url?: string;
 }
 
-// Star Rating Component
+// Star Rating Component - Whole numbers only (1, 2, 3, 4, 5)
 function StarRating({
   rating,
   onRatingChange,
@@ -20,43 +21,29 @@ function StarRating({
 }) {
   const [hover, setHover] = useState(0);
 
-  const handleStarClick = (starIndex: number, isHalf: boolean) => {
+  const handleStarClick = (starIndex: number) => {
     if (readonly || !onRatingChange) return;
-    const newRating = isHalf ? starIndex - 0.5 : starIndex;
-    onRatingChange(newRating);
+    onRatingChange(starIndex);
   };
 
-  const handleStarHover = (starIndex: number, isHalf: boolean) => {
+  const handleStarHover = (starIndex: number) => {
     if (readonly) return;
-    const hoverRating = isHalf ? starIndex - 0.5 : starIndex;
-    setHover(hoverRating);
+    setHover(starIndex);
   };
 
   const renderStar = (starIndex: number) => {
     const currentRating = hover || rating;
-    const isFull = currentRating >= starIndex;
-    const isHalf =
-      currentRating >= starIndex - 0.5 && currentRating < starIndex;
+    const isFilled = currentRating >= starIndex;
 
     if (readonly) {
       return (
         <span
           key={starIndex}
-          className="relative text-3xl sm:text-4xl lg:text-5xl transition-colors cursor-default"
+          className={`text-3xl sm:text-4xl lg:text-5xl transition-colors cursor-default ${
+            isFilled ? "text-yellow-400" : "text-gray-300"
+          }`}
         >
-          {/* Background star (gray) */}
-          <span className="text-gray-300">★</span>
-          {/* Filled portion */}
-          {(isFull || isHalf) && (
-            <span
-              className="absolute top-0 left-0 text-yellow-400 overflow-hidden"
-              style={{
-                width: isFull ? "100%" : isHalf ? "50%" : "0%",
-              }}
-            >
-              ★
-            </span>
-          )}
+          ★
         </span>
       );
     }
@@ -65,37 +52,14 @@ function StarRating({
       <button
         key={starIndex}
         type="button"
-        className="relative text-3xl sm:text-4xl lg:text-5xl transition-all cursor-pointer hover:scale-110 focus:outline-none touch-manipulation"
+        className={`text-3xl sm:text-4xl lg:text-5xl transition-all duration-200 cursor-pointer hover:scale-125 focus:outline-none touch-manipulation ${
+          isFilled ? "text-yellow-400" : "text-gray-300"
+        }`}
+        onClick={() => handleStarClick(starIndex)}
+        onMouseEnter={() => handleStarHover(starIndex)}
         onMouseLeave={() => setHover(0)}
       >
-        {/* Background star (gray) */}
-        <span className="text-gray-300">★</span>
-
-        {/* Left half overlay for half star */}
-        <div
-          className="absolute top-0 left-0 w-1/2 h-full"
-          onClick={() => handleStarClick(starIndex, true)}
-          onMouseEnter={() => handleStarHover(starIndex, true)}
-        />
-
-        {/* Right half overlay for full star */}
-        <div
-          className="absolute top-0 right-0 w-1/2 h-full"
-          onClick={() => handleStarClick(starIndex, false)}
-          onMouseEnter={() => handleStarHover(starIndex, false)}
-        />
-
-        {/* Filled portion */}
-        {(isFull || isHalf) && (
-          <span
-            className="absolute top-0 left-0 text-yellow-400 overflow-hidden pointer-events-none"
-            style={{
-              width: isFull ? "100%" : isHalf ? "50%" : "0%",
-            }}
-          >
-            ★
-          </span>
-        )}
+        ★
       </button>
     );
   };
@@ -125,6 +89,73 @@ export default function ReviewForm({ business }: { business: Business }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState(true);
+  const [showClipboardSuccess, setShowClipboardSuccess] = useState(false);
+
+  // Fetch random feedback on component mount
+  useEffect(() => {
+    const fetchRandomFeedback = async () => {
+      try {
+        const response = await fetch(`/api/businesses/${business.id}/feedback`);
+        const data = await response.json();
+        
+        if (response.ok && data.feedback) {
+          setReviewText(data.feedback);
+        }
+      } catch (error) {
+        console.error("Error fetching random feedback:", error);
+      } finally {
+        setIsLoadingFeedback(false);
+      }
+    };
+
+    fetchRandomFeedback();
+  }, [business.id]);
+
+  // Handle rating change with clipboard copy and redirect for high ratings
+  const handleRatingChange = async (newRating: number) => {
+    setRating(newRating);
+    
+    // If rating is 4 or above and we have Google Maps URL, copy feedback and redirect
+    if (newRating >= 4 && business.google_maps_url) {
+      try {
+        // Copy feedback to clipboard if there's content
+        if (reviewText.trim()) {
+          // For mobile devices, use the modern Clipboard API with fallback
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(reviewText.trim());
+          } else {
+            // Fallback for older browsers or non-secure contexts
+            const textArea = document.createElement('textarea');
+            textArea.value = reviewText.trim();
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            textArea.remove();
+          }
+          
+          // Show success message
+          setShowClipboardSuccess(true);
+          setTimeout(() => setShowClipboardSuccess(false), 3000);
+        }
+        
+        // Small delay to ensure clipboard operation completes
+        setTimeout(() => {
+          // Redirect to Google Maps URL
+          window.open(business.google_maps_url, '_blank');
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error copying to clipboard:', error);
+        // Still redirect even if clipboard fails
+        window.open(business.google_maps_url, '_blank');
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,7 +302,25 @@ export default function ReviewForm({ business }: { business: Business }) {
           <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
             Your Rating *
           </label>
-          <StarRating rating={rating} onRatingChange={setRating} />
+          <StarRating rating={rating} onRatingChange={handleRatingChange} />
+          {rating >= 4 && business.google_maps_url && (
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800">
+                🌟 Great rating! We've copied your feedback to help you leave a Google review. 
+                You'll be redirected to Google Reviews where you can paste your feedback.
+              </p>
+            </div>
+          )}
+          {showClipboardSuccess && (
+            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-800 flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Feedback copied to clipboard!
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Custom Review Text */}
@@ -287,9 +336,15 @@ export default function ReviewForm({ business }: { business: Business }) {
             value={reviewText}
             onChange={(e) => setReviewText(e.target.value)}
             rows={3}
-            placeholder="Tell us about your experience... (optional)"
-            className="w-full px-3 py-3 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation resize-none"
+            placeholder={isLoadingFeedback ? "Loading suggestion..." : "Tell us about your experience... (optional)"}
+            disabled={isLoadingFeedback}
+            className="w-full px-3 py-3 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation resize-none disabled:bg-gray-50 disabled:text-gray-500"
           />
+          {reviewText && !isLoadingFeedback && (
+            <p className="text-xs text-gray-500 mt-1">
+              Feel free to edit this suggestion or write your own feedback
+            </p>
+          )}
         </div>
 
         {/* Error Message */}
@@ -299,26 +354,51 @@ export default function ReviewForm({ business }: { business: Business }) {
           </div>
         )}
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={
-            isSubmitting ||
-            rating === 0 ||
-            !customerName.trim() ||
-            !customerPhone.trim()
-          }
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-4 sm:py-3 rounded-md font-medium flex items-center justify-center transition-colors text-base sm:text-sm touch-manipulation"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              <span className="text-sm sm:text-base">Submitting Review...</span>
-            </>
-          ) : (
-            <span className="text-sm sm:text-base">Submit Review</span>
-          )}
-        </button>
+        {/* Submit Button - Only show for ratings below 4 */}
+        {rating < 4 && (
+          <button
+            type="submit"
+            disabled={
+              isSubmitting ||
+              rating === 0 ||
+              !customerName.trim() ||
+              !customerPhone.trim()
+            }
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-4 sm:py-3 rounded-md font-medium flex items-center justify-center transition-colors text-base sm:text-sm touch-manipulation"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <span className="text-sm sm:text-base">Submitting Review...</span>
+              </>
+            ) : (
+              <span className="text-sm sm:text-base">Submit Review</span>
+            )}
+          </button>
+        )}
+
+        {/* Google Review Button - Show for ratings 4 and above */}
+        {rating >= 4 && business.google_maps_url && (
+          <button
+            type="button"
+            onClick={() => window.open(business.google_maps_url, '_blank')}
+            className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-4 sm:py-3 rounded-md font-medium flex items-center justify-center transition-colors text-base sm:text-sm touch-manipulation"
+          >
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm sm:text-base">Continue to Google Reviews</span>
+          </button>
+        )}
+
+        {/* Fallback for high ratings without Google Maps URL */}
+        {rating >= 4 && !business.google_maps_url && (
+          <div className="w-full p-4 bg-yellow-50 border border-yellow-200 rounded-md text-center">
+            <p className="text-sm text-yellow-800">
+              🌟 Thank you for the great rating! Please consider leaving a review on Google to help other customers find us.
+            </p>
+          </div>
+        )}
       </form>
 
       {/* Privacy Notice */}

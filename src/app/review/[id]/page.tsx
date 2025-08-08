@@ -16,6 +16,7 @@ async function getBusinessForReview(businessId: string) {
         b.description, 
         b.address,
         b.website,
+        b.google_maps_url,
         bt.name as business_type_name
       FROM businesses b
       LEFT JOIN business_types bt ON b.business_type_id = bt.id
@@ -63,46 +64,6 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
-        {/* Business Info */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
-            About Us
-          </h2>
-
-          {business.description && (
-            <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base leading-relaxed">
-              {business.description}
-            </p>
-          )}
-
-          {business.address && (
-            <div className="mb-3 sm:mb-4">
-              <h3 className="font-medium text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">
-                Location
-              </h3>
-              <p className="text-gray-600 text-sm sm:text-base break-words">
-                {business.address}
-              </p>
-            </div>
-          )}
-
-          {business.website && (
-            <div className="mb-3 sm:mb-4">
-              <h3 className="font-medium text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">
-                Website
-              </h3>
-              <a
-                href={business.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 text-sm sm:text-base break-all"
-              >
-                {business.website}
-              </a>
-            </div>
-          )}
-        </div>
-
         {/* QR Scan Tracker */}
         <QRScanTracker businessId={business.id} />
 

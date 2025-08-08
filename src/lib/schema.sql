@@ -195,4 +195,14 @@ CREATE TRIGGER update_businesses_updated_at BEFORE UPDATE ON businesses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); -- Bu
+siness feedbacks table - stores predefined feedback templates for businesses
+CREATE TABLE IF NOT EXISTS business_feedbacks (
+    id SERIAL PRIMARY KEY,
+    business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    feedback VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for business_feedbacks table
+CREATE INDEX IF NOT EXISTS idx_business_feedbacks_business_id ON business_feedbacks(business_id);
