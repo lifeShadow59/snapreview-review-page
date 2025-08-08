@@ -2,24 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const resolvedParams = await params;
-    const businessId = resolvedParams.id;
+    try {
+        const resolvedParams = await params;
+        const businessId = resolvedParams.id;
 
-    // Validate business ID format (UUID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(businessId)) {
-      return NextResponse.json(
-        { error: "Invalid business ID format" },
-        { status: 400 }
-      );
-    }
+        // Validate business ID format (UUID)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(businessId)) {
+            return NextResponse.json(
+                { error: "Invalid business ID format" },
+                { status: 400 }
+            );
+        }
 
-    // Get business details with tags
-    const businessQuery = `
+        // Get business details with tags
+        const businessQuery = `
       SELECT 
         b.name, 
         b.description, 
@@ -37,19 +37,19 @@ export async function POST(
       GROUP BY b.id, b.name, b.description, b.address, b.website, bt.name
     `;
 
-    const businessResult = await pool.query(businessQuery, [businessId]);
-    
-    if (businessResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Business not found" },
-        { status: 404 }
-      );
-    }
+        const businessResult = await pool.query(businessQuery, [businessId]);
 
-    const business = businessResult.rows[0];
+        if (businessResult.rows.length === 0) {
+            return NextResponse.json(
+                { error: "Business not found" },
+                { status: 404 }
+            );
+        }
 
-    // Create prompt for AI feedback generation
-    const prompt = `Generate a positive customer review feedback for the following business:
+        const business = businessResult.rows[0];
+
+        // Create prompt for AI feedback generation
+        const prompt = `Generate a positive customer review feedback for the following business:
 
 Business Name: ${business.name}
 Business Type: ${business.business_type_name || 'Not specified'}
@@ -68,61 +68,61 @@ Please generate a realistic, positive customer review that:
 
 Generate only the review text, no additional formatting or quotes.`;
 
-    // Call OpenRouter API
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
-        'X-Title': 'ReviewQR Feedback Generator'
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful assistant that generates realistic, positive customer reviews for businesses. Keep reviews authentic and specific to the business type and tags.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 200,
-        temperature: 0.8
-      })
-    });
+        // Call OpenRouter API
+        const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
+                'X-Title': 'ReviewQR Feedback Generator'
+            },
+            body: JSON.stringify({
+                model: 'openai/gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a helpful assistant that generates realistic, positive customer reviews for businesses. Keep reviews authentic and specific to the business type and tags.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                max_tokens: 200,
+                temperature: 0.8
+            })
+        });
 
-    if (!openRouterResponse.ok) {
-      const errorData = await openRouterResponse.text();
-      console.error('OpenRouter API error:', errorData);
-      return NextResponse.json(
-        { error: "Failed to generate feedback" },
-        { status: 500 }
-      );
+        if (!openRouterResponse.ok) {
+            const errorData = await openRouterResponse.text();
+            console.error('OpenRouter API error:', errorData);
+            return NextResponse.json(
+                { error: "Failed to generate feedback" },
+                { status: 500 }
+            );
+        }
+
+        const aiResponse = await openRouterResponse.json();
+        const generatedFeedback = aiResponse.choices[0]?.message?.content?.trim();
+
+        if (!generatedFeedback) {
+            return NextResponse.json(
+                { error: "No feedback generated" },
+                { status: 500 }
+            );
+        }
+
+        return NextResponse.json(
+            { feedback: generatedFeedback },
+            { status: 200 }
+        );
+
+    } catch (error) {
+        console.error("Error generating AI feedback:", error);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
     }
-
-    const aiResponse = await openRouterResponse.json();
-    const generatedFeedback = aiResponse.choices[0]?.message?.content?.trim();
-
-    if (!generatedFeedback) {
-      return NextResponse.json(
-        { error: "No feedback generated" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { feedback: generatedFeedback },
-      { status: 200 }
-    );
-
-  } catch (error) {
-    console.error("Error generating AI feedback:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
 }
