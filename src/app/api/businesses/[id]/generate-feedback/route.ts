@@ -7,6 +7,7 @@ export async function POST(
 ) {
     try {
         const resolvedParams = await params;
+        
         const businessId = resolvedParams.id;
 
         // Validate business ID format (UUID)
