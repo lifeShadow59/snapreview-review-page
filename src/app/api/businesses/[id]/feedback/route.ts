@@ -18,26 +18,26 @@ export async function GET(
       );
     }
 
-    // Get a random feedback for the business
+    // Get 3 random feedbacks for the business
     const query = `
       SELECT feedback 
       FROM business_feedbacks 
       WHERE business_id = $1 
       ORDER BY RANDOM() 
-      LIMIT 1
+      LIMIT 3
     `;
 
     const result = await pool.query(query, [businessId]);
 
     if (result.rows.length === 0) {
       return NextResponse.json(
-        { feedback: null },
+        { feedbacks: [] },
         { status: 200 }
       );
     }
 
     return NextResponse.json(
-      { feedback: result.rows[0].feedback },
+      { feedbacks: result.rows.map(row => row.feedback) },
       { status: 200 }
     );
   } catch (error) {
