@@ -76,12 +76,11 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
           <div className="text-center">
             <div className="flex items-center justify-center mb-1 sm:mb-2">
-              <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded text-white flex items-center justify-center text-xs font-bold mr-2">
-                QR
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-gray-700">
-                Powered by ReviewQR
-              </span>
+              <img 
+                src="/logo-design-5-modern-geometric.svg" 
+                alt="SnapReview.ai" 
+                className="h-12 sm:h-16 w-auto"
+              />
             </div>
             <p className="text-xs text-gray-500 px-2">
               Digital review management for modern businesses
