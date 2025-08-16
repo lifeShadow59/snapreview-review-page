@@ -168,7 +168,7 @@ export default function ReviewForm({ business }: { business: Business }) {
       {/* Privacy Notice */}
       <div className="mt-6 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 leading-relaxed text-center">
-          By clicking on a feedback option, it will be copied to your clipboard and you&apos;ll be redirected to Google Reviews to complete your review.
+          Click on any feedback option above to copy it to your clipboard and be redirected to Google Reviews.
         </p>
       </div>
     </div>
