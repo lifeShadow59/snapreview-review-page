@@ -60,12 +60,15 @@ Address: ${business.address || 'Not provided'}
 Website: ${business.website || 'Not provided'}
 
 Please generate a realistic, positive customer review that:
-1. Mentions specific aspects of the business type and tags
-2. Sounds natural and authentic
-3. Is between 50-150 words
-4. Includes specific details that would be relevant to this type of business
-5. Uses a friendly, conversational tone
-6. References the business tags if they are meaningful
+1. Has a funky yet professional tone - creative, engaging, and memorable
+2. Uses modern, trendy language while maintaining professionalism
+3. Mentions specific aspects of the business type and tags in a creative way
+4. Is between 60-180 words
+5. Includes specific details that would be relevant to this type of business
+6. Uses expressions like "absolutely nailed it", "game-changer", "next level", "vibes are immaculate"
+7. Balances enthusiasm with credibility
+8. References the business tags in a natural, hip way
+9. Sounds like it's written by someone who genuinely loves sharing great experiences
 
 Generate only the review text, no additional formatting or quotes.`;
 
@@ -83,7 +86,7 @@ Generate only the review text, no additional formatting or quotes.`;
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a helpful assistant that generates realistic, positive customer reviews for businesses. Keep reviews authentic and specific to the business type and tags.'
+                        content: 'You are a creative assistant that generates funky yet professional customer reviews for businesses. Your reviews should be engaging, modern, and authentic while maintaining credibility. Use trendy expressions and contemporary language that resonates with today\'s customers.'
                     },
                     {
                         role: 'user',
