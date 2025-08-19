@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import pool from "@/lib/db";
-import ReviewForm from "@/components/review/ReviewForm";
+import FeedbackGenerator from "@/components/feedback/FeedbackGenerator";
 import QRScanTracker from "@/components/review/QRScanTracker";
+import Image from 'next/image';
 
 interface ReviewPageProps {
   params: Promise<{ id: string }>;
@@ -73,8 +74,8 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
         {/* QR Scan Tracker */}
         <QRScanTracker businessId={business.id} />
 
-        {/* Review Form */}
-        <ReviewForm business={business} />
+        {/* Feedback Generator */}
+        <FeedbackGenerator business={business} />
       </div>
 
       {/* Footer */}
