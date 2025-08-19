@@ -17,10 +17,16 @@ async function getBusinessForReview(businessId: string) {
         b.address,
         b.website,
         b.google_maps_url,
-        bt.name as business_type_name
+        bt.name as business_type_name,
+        COALESCE(
+          STRING_AGG(btags.tag, ', '), 
+          ''
+        ) as business_tags
       FROM businesses b
       LEFT JOIN business_types bt ON b.business_type_id = bt.id
+      LEFT JOIN business_tags btags ON b.id = btags.business_id
       WHERE b.id = $1 AND b.status = 'active'
+      GROUP BY b.id, b.name, b.description, b.address, b.website, b.google_maps_url, bt.name
     `;
 
     const result = await pool.query(query, [businessId]);
