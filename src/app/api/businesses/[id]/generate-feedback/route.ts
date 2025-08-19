@@ -7,7 +7,7 @@ export async function POST(
 ) {
     try {
         const resolvedParams = await params;
-        
+
         const businessId = resolvedParams.id;
 
         // Validate business ID format (UUID)
@@ -82,7 +82,7 @@ Generate only the review text, no additional formatting or quotes.`;
                 'X-Title': 'ReviewQR Feedback Generator'
             },
             body: JSON.stringify({
-                model: 'openai/gpt-3.5-turbo',
+                model: 'anthropic/claude-sonnet-4',
                 messages: [
                     {
                         role: 'system',
