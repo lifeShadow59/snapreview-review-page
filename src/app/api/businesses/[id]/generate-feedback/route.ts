@@ -73,30 +73,39 @@ Please generate a realistic, positive customer review that:
 Generate only the review text, no additional formatting or quotes.`;
 
         // Call OpenRouter API
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+
         const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 'Content-Type': 'application/json',
                 'HTTP-Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
-                'X-Title': 'ReviewQR Feedback Generator'
+                'X-Title': 'SnapReview.ai Feedback Generator'
             },
             body: JSON.stringify({
-                model: 'anthropic/claude-sonnet-4',
+                model: 'openai/gpt-4o-mini', // Fast and efficient model
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a creative assistant that generates funky yet professional customer reviews for businesses. Your reviews should be engaging, modern, and authentic while maintaining credibility. Use trendy expressions and contemporary language that resonates with today\'s customers.'
+                        content: 'You are a creative, trendy customer who writes engaging reviews. Your reviews should be engaging, modern, and authentic while maintaining credibility. Use trendy expressions and contemporary language that resonates with today\'s customers. Make it sound authentic and human-like, not AI-generated. Use varied sentence structures and personal experiences.'
                     },
                     {
                         role: 'user',
                         content: prompt
                     }
                 ],
-                max_tokens: 200,
-                temperature: 0.8
-            })
+                max_tokens: 250, // Allow for longer reviews
+                temperature: 0.9, // High creativity
+                top_p: 0.95,
+                frequency_penalty: 0.5,
+                presence_penalty: 0.2
+            }),
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!openRouterResponse.ok) {
             const errorData = await openRouterResponse.text();
@@ -109,6 +118,55 @@ Generate only the review text, no additional formatting or quotes.`;
 
         const aiResponse = await openRouterResponse.json();
         const generatedFeedback = aiResponse.choices[0]?.message?.content?.trim();
+
+        // Comment out Gemini code for reference
+        /*
+        // GEMINI API call (commented out)
+        const geminiApiKey = 'AIzaSyBPM13pTRZFqdB_LvVVTceiWn_evIVNf_8';
+        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: `You are a creative, trendy customer who writes engaging reviews. ${prompt} Make it sound authentic and human-like, not AI-generated. Use varied sentence structures and personal experiences.`
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    temperature: 0.9,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 250,
+                    stopSequences: []
+                },
+                safetySettings: [
+                    {
+                        category: "HARM_CATEGORY_HARASSMENT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_HATE_SPEECH", 
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    }
+                ]
+            }),
+            signal: controller.signal
+        });
+        */
 
         if (!generatedFeedback) {
             return NextResponse.json(

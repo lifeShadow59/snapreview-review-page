@@ -9,6 +9,10 @@ export async function GET(
     const resolvedParams = await params;
     const businessId = resolvedParams.id;
 
+    // Get language_code from query parameters
+    const { searchParams } = new URL(request.url);
+    const languageCode = searchParams.get('language_code');
+
     // Validate business ID format (UUID)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(businessId)) {
@@ -18,16 +22,24 @@ export async function GET(
       );
     }
 
-    // Get 3 random feedbacks for the business
-    const query = `
+    // Get 3 random feedbacks for the business, optionally filtered by language
+    let query = `
       SELECT feedback 
       FROM business_feedbacks 
-      WHERE business_id = $1 
-      ORDER BY RANDOM() 
-      LIMIT 3
+      WHERE business_id = $1
     `;
+    
+    const queryParams = [businessId];
+    
+    // Add language filter if provided
+    if (languageCode) {
+      query += ` AND language_code = $2`;
+      queryParams.push(languageCode);
+    }
+    
+    query += ` ORDER BY RANDOM() LIMIT 3`;
 
-    const result = await pool.query(query, [businessId]);
+    const result = await pool.query(query, queryParams);
 
     if (result.rows.length === 0) {
       return NextResponse.json(
