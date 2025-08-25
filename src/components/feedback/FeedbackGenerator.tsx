@@ -115,7 +115,7 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
     
     // Create abort controller for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second client timeout for faster response
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second client timeout to allow API to respond
 
     try {
       const response = await fetch(`/api/businesses/${business.id}/generate-live-feedback`, {

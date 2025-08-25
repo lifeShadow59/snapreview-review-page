@@ -28,29 +28,30 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Read and parse request body once at the beginning
+  let requestBody;
+  let bodyText = '';
+  
   try {
-    const resolvedParams = await params;
-    const businessId = resolvedParams.id;
-    
-    // Safe JSON parsing with error handling
-    let requestBody;
-    try {
-      const bodyText = await request.text();
-      if (!bodyText || bodyText.trim() === '') {
-        return NextResponse.json(
-          { error: "Request body is empty" },
-          { status: 400 }
-        );
-      }
-      requestBody = JSON.parse(bodyText);
-    } catch (parseError) {
-      console.error("JSON parsing error:", parseError);
+    bodyText = await request.text();
+    if (!bodyText || bodyText.trim() === '') {
       return NextResponse.json(
-        { error: "Invalid JSON in request body" },
+        { error: "Request body is empty" },
         { status: 400 }
       );
     }
-    
+    requestBody = JSON.parse(bodyText);
+  } catch (parseError) {
+    console.error("JSON parsing error:", parseError);
+    return NextResponse.json(
+      { error: "Invalid JSON in request body" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const resolvedParams = await params;
+    const businessId = resolvedParams.id;
     const { language, language_code, businessName, businessType, businessTags } = requestBody;
     
     // Support both old 'language' and new 'language_code' parameters for backward compatibility
@@ -96,7 +97,7 @@ export async function POST(
 
     // Call OpenRouter API with timeout for faster response
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout for faster response
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout to allow API to respond
 
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -214,27 +215,12 @@ export async function POST(
   } catch (error) {
     console.error("Error generating live feedback:", error);
 
-    // Smart fallback with template variations - safe JSON parsing
-    let fallbackData = {
-      language: 'english',
-      language_code: 'en',
-      businessName: 'this business'
+    // Use already parsed request body for fallback
+    const fallbackData = {
+      language: requestBody?.language || 'english',
+      language_code: requestBody?.language_code || 'en',
+      businessName: requestBody?.businessName || 'this business'
     };
-    
-    try {
-      const bodyText = await request.text();
-      if (bodyText && bodyText.trim() !== '') {
-        const parsedBody = JSON.parse(bodyText);
-        fallbackData = {
-          language: parsedBody.language || 'english',
-          language_code: parsedBody.language_code || 'en',
-          businessName: parsedBody.businessName || 'this business'
-        };
-      }
-    } catch (parseError) {
-      console.error("Fallback JSON parsing error:", parseError);
-      // Use default fallback data
-    }
     
     const { language, language_code, businessName } = fallbackData;
     
