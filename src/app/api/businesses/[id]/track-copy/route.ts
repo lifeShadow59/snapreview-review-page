@@ -5,10 +5,28 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let businessId = '';
+  let language_code = '';
+  
   try {
     const resolvedParams = await params;
-    const businessId = resolvedParams.id;
-    const { language_code, feedback_id } = await request.json();
+    businessId = resolvedParams.id;
+    
+    // Handle empty request body
+    let requestBody;
+    try {
+      const text = await request.text();
+      requestBody = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+    
+    const { language_code: langCode, feedback_id } = requestBody;
+    language_code = langCode;
 
     // Validate business ID format (UUID)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,28 +45,52 @@ export async function POST(
     }
 
     // Start transaction for atomic operations
+    console.log("Attempting to connect to database...");
     const client = await pool.connect();
-    
+    console.log("Database connection successful");
+
     try {
       await client.query('BEGIN');
+      console.log("Transaction started for business:", businessId, "language:", language_code);
 
-      // Update or insert analytics tracking
-      const upsertAnalyticsQuery = `
-        INSERT INTO feedback_analytics (business_id, language_code, copy_count, last_copy_timestamp)
-        VALUES ($1, $2, 1, CURRENT_TIMESTAMP)
+      // Check if business_copy_metrics table exists
+      const tableCheckQuery = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'business_copy_metrics'
+        );
+      `;
+      const tableExists = await client.query(tableCheckQuery);
+      console.log("business_copy_metrics table exists:", tableExists.rows[0].exists);
+
+      if (!tableExists.rows[0].exists) {
+        throw new Error("business_copy_metrics table does not exist. Please run the database migration.");
+      }
+
+      // Update or insert copy metrics tracking in business_copy_metrics table
+      const upsertCopyMetricsQuery = `
+        INSERT INTO business_copy_metrics (business_id, language_code, copy_count, last_copy_timestamp, updated_at)
+        VALUES ($1, $2, 1, NOW(), NOW())
         ON CONFLICT (business_id, language_code)
         DO UPDATE SET 
-          copy_count = feedback_analytics.copy_count + 1,
-          last_copy_timestamp = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
+          copy_count = business_copy_metrics.copy_count + 1,
+          last_copy_timestamp = NOW(),
+          updated_at = NOW()
         RETURNING copy_count
       `;
 
-      const analyticsResult = await client.query(upsertAnalyticsQuery, [businessId, language_code]);
-      const newCopyCount = analyticsResult.rows[0]?.copy_count || 1;
+      console.log("Executing upsert query with params:", [businessId, language_code]);
+      const copyMetricsResult = await client.query(upsertCopyMetricsQuery, [businessId, language_code]);
+      const newCopyCount = copyMetricsResult.rows[0]?.copy_count || 1;
+      console.log("Copy metrics updated, new count:", newCopyCount);
+
+      // The trigger will automatically update the total_copy_count in business_metrics table
+      console.log("Trigger should have updated business_metrics table");
 
       // Optional: Delete feedback from storage if feedback_id provided
       if (feedback_id) {
+        console.log("Deleting feedback from storage:", feedback_id);
         const deleteFeedbackQuery = `
           DELETE FROM feedback_storage 
           WHERE id = $1 AND business_id = $2
@@ -57,27 +99,53 @@ export async function POST(
       }
 
       // Get total analytics for response
+      console.log("Fetching total analytics...");
       const totalAnalyticsQuery = `
         SELECT 
-          SUM(copy_count) as total_copies,
+          COALESCE(SUM(copy_count), 0) as total_copies,
           json_object_agg(language_code, copy_count) as language_breakdown
-        FROM feedback_analytics 
+        FROM business_copy_metrics 
         WHERE business_id = $1
       `;
 
       const totalResult = await client.query(totalAnalyticsQuery, [businessId]);
       const analytics = totalResult.rows[0] || { total_copies: 0, language_breakdown: {} };
+      console.log("Analytics result:", analytics);
+
+      // Also get the updated business_metrics data
+      console.log("Fetching business metrics...");
+      const businessMetricsQuery = `
+        SELECT total_copy_count, total_qr_scans, total_reviews, average_rating, conversion_rate
+        FROM business_metrics 
+        WHERE business_id = $1
+      `;
+
+      const businessMetricsResult = await client.query(businessMetricsQuery, [businessId]);
+      const businessMetrics = businessMetricsResult.rows[0] || {};
+      console.log("Business metrics result:", businessMetrics);
 
       await client.query('COMMIT');
+      console.log("Transaction committed successfully");
 
-      return NextResponse.json({
+      const responseData = {
         success: true,
         analytics: {
           totalCopies: parseInt(analytics.total_copies) || 0,
           languageBreakdown: analytics.language_breakdown || {},
           currentLanguageCopies: newCopyCount
+        },
+        businessMetrics: {
+          totalCopyCount: businessMetrics.total_copy_count || 0,
+          totalQrScans: businessMetrics.total_qr_scans || 0,
+          totalReviews: businessMetrics.total_reviews || 0,
+          averageRating: parseFloat(businessMetrics.average_rating) || 0,
+          conversionRate: parseFloat(businessMetrics.conversion_rate) || 0
         }
-      });
+      };
+      
+      console.log("Sending response:", responseData);
+
+      return NextResponse.json(responseData);
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -86,18 +154,37 @@ export async function POST(
       client.release();
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error tracking copy:", error);
-    
-    // Return success even if tracking fails to not interrupt user experience
+    console.error("Error details:", {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack || 'No stack trace',
+      businessId: businessId || 'undefined',
+      language_code: language_code || 'undefined'
+    });
+
+    // Return error details for debugging
     return NextResponse.json({
-      success: true,
+      success: false,
+      error: error?.message || 'Unknown error occurred',
+      details: {
+        businessId: businessId || 'undefined',
+        language_code: language_code || 'undefined',
+        errorType: error?.constructor?.name || 'Unknown'
+      },
       analytics: {
         totalCopies: 0,
         languageBreakdown: {},
         currentLanguageCopies: 1
       },
+      businessMetrics: {
+        totalCopyCount: 0,
+        totalQrScans: 0,
+        totalReviews: 0,
+        averageRating: 0,
+        conversionRate: 0
+      },
       warning: "Tracking failed but copy operation completed"
-    });
+    }, { status: 500 });
   }
 }

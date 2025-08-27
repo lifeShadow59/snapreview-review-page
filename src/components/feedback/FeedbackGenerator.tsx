@@ -270,6 +270,11 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
       }
 
       // Track the copy action (async, don't wait for it)
+      console.log('Sending copy tracking request with data:', {
+        language_code: selectedLanguageCode,
+        business_id: business.id
+      });
+      
       fetch(`/api/businesses/${business.id}/track-copy`, {
         method: 'POST',
         headers: {
@@ -278,7 +283,22 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
         body: JSON.stringify({
           language_code: selectedLanguageCode
         }),
-      }).catch(error => {
+      })
+      .then(response => {
+        console.log('Copy tracking response status:', response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log('Copy tracking response:', data);
+        if (data.success) {
+          console.log('✅ Copy tracking successful!');
+          console.log('📊 Analytics:', data.analytics);
+          console.log('📈 Business Metrics:', data.businessMetrics);
+        } else {
+          console.error('❌ Copy tracking failed:', data.error, data.details);
+        }
+      })
+      .catch(error => {
         console.error('Error tracking copy:', error);
         // Don't interrupt user experience if tracking fails
       });

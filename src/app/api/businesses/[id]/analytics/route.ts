@@ -18,19 +18,19 @@ export async function GET(
       );
     }
 
-    // Get comprehensive analytics data
+    // Get comprehensive analytics data from business_copy_metrics
     const analyticsQuery = `
       SELECT 
-        fa.language_code,
-        fa.copy_count,
-        fa.last_copy_timestamp,
+        bcm.language_code,
+        bcm.copy_count,
+        bcm.last_copy_timestamp,
         blp.language_name
-      FROM feedback_analytics fa
+      FROM business_copy_metrics bcm
       LEFT JOIN business_language_preferences blp 
-        ON fa.business_id = blp.business_id 
-        AND fa.language_code = blp.language_code
-      WHERE fa.business_id = $1
-      ORDER BY fa.copy_count DESC
+        ON bcm.business_id = blp.business_id 
+        AND bcm.language_code = blp.language_code
+      WHERE bcm.business_id = $1
+      ORDER BY bcm.copy_count DESC
     `;
 
     const analyticsResult = await pool.query(analyticsQuery, [businessId]);
@@ -47,12 +47,28 @@ export async function GET(
       };
     });
 
+    // Get business metrics data
+    const businessMetricsQuery = `
+      SELECT 
+        total_copy_count,
+        total_qr_scans,
+        total_reviews,
+        average_rating,
+        conversion_rate,
+        last_updated
+      FROM business_metrics 
+      WHERE business_id = $1
+    `;
+
+    const businessMetricsResult = await pool.query(businessMetricsQuery, [businessId]);
+    const businessMetrics = businessMetricsResult.rows[0] || {};
+
     // Get recent activity (last 30 days)
     const recentActivityQuery = `
       SELECT 
         DATE(last_copy_timestamp) as date,
         SUM(copy_count) as copies
-      FROM feedback_analytics 
+      FROM business_copy_metrics 
       WHERE business_id = $1 
         AND last_copy_timestamp >= CURRENT_DATE - INTERVAL '30 days'
       GROUP BY DATE(last_copy_timestamp)
@@ -71,6 +87,14 @@ export async function GET(
       totalCopies,
       languageBreakdown,
       recentActivity,
+      businessMetrics: {
+        totalCopyCount: businessMetrics.total_copy_count || 0,
+        totalQrScans: businessMetrics.total_qr_scans || 0,
+        totalReviews: businessMetrics.total_reviews || 0,
+        averageRating: parseFloat(businessMetrics.average_rating) || 0,
+        conversionRate: parseFloat(businessMetrics.conversion_rate) || 0,
+        lastUpdated: businessMetrics.last_updated || null
+      },
       lastUpdated: new Date().toISOString()
     });
 
