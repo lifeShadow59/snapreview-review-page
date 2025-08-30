@@ -43,15 +43,15 @@ async function getBusinessForReview(businessId: string) {
 
 export default async function ReviewPage({ params }: ReviewPageProps) {
   const resolvedParams = await params;
-  
+
   // Check subscription status first
   const subscriptionStatus = await checkBusinessSubscription(resolvedParams.id);
-  
+
   // If subscription is not active, show error page
   if (!subscriptionStatus.isActive) {
     return <SubscriptionError status={subscriptionStatus} />;
   }
-  
+
   // Get business details only if subscription is active
   const business = await getBusinessForReview(resolvedParams.id);
 
@@ -96,9 +96,9 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
           <div className="text-center">
             <div className="flex items-center justify-center mb-1 sm:mb-2">
-              <Image 
-                src="/logo-design-5-modern-geometric.svg" 
-                alt="SnapReview.ai" 
+              <Image
+                src="/logo-design-5-modern-geometric.svg"
+                alt="SnapReview.ai"
                 width={200}
                 height={60}
                 className="h-12 sm:h-16 w-auto"
