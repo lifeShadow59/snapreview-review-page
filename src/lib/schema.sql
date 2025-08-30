@@ -115,6 +115,10 @@ CREATE TABLE IF NOT EXISTS businesses (
     google_maps_url TEXT,
     description TEXT,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'pending')),
+    subscription_status VARCHAR(20) DEFAULT 'active' CHECK (subscription_status IN ('active', 'cancelled', 'expired', 'trial', 'suspended')),
+    qr_codes_enabled BOOLEAN DEFAULT true,
+    subscription_expires_at TIMESTAMP WITH TIME ZONE,
+    subscription_plan VARCHAR(50) DEFAULT 'basic',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -177,6 +181,8 @@ CREATE TABLE IF NOT EXISTS business_copy_metrics (
 -- Indexes for business tables
 CREATE INDEX IF NOT EXISTS idx_businesses_user_id ON businesses(user_id);
 CREATE INDEX IF NOT EXISTS idx_businesses_status ON businesses(status);
+CREATE INDEX IF NOT EXISTS idx_businesses_subscription_status ON businesses(subscription_status);
+CREATE INDEX IF NOT EXISTS idx_businesses_qr_enabled ON businesses(qr_codes_enabled);
 CREATE INDEX IF NOT EXISTS idx_business_tags_business_id ON business_tags(business_id);
 CREATE INDEX IF NOT EXISTS idx_business_tags_tag ON business_tags(tag);
 CREATE INDEX IF NOT EXISTS idx_business_phone_business_id ON business_phone_numbers(business_id);

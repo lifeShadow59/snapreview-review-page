@@ -34,11 +34,12 @@ export async function POST(request: NextRequest) {
       receivedText: text
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Test endpoint error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({
       success: false,
-      error: error?.message || "Unknown error"
+      error: errorMessage
     });
   }
 }

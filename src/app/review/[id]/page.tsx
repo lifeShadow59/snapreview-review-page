@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import pool from "@/lib/db";
 import FeedbackGenerator from "@/components/feedback/FeedbackGenerator";
 import QRScanTracker from "@/components/review/QRScanTracker";
+import SubscriptionError from "@/components/subscription/SubscriptionError";
+import { checkBusinessSubscription } from "@/lib/subscription";
 import Image from 'next/image';
 
 interface ReviewPageProps {
@@ -10,6 +12,7 @@ interface ReviewPageProps {
 
 async function getBusinessForReview(businessId: string) {
   try {
+    // Use basic query without subscription columns to avoid errors
     const query = `
       SELECT 
         b.id, 
@@ -40,6 +43,16 @@ async function getBusinessForReview(businessId: string) {
 
 export default async function ReviewPage({ params }: ReviewPageProps) {
   const resolvedParams = await params;
+  
+  // Check subscription status first
+  const subscriptionStatus = await checkBusinessSubscription(resolvedParams.id);
+  
+  // If subscription is not active, show error page
+  if (!subscriptionStatus.isActive) {
+    return <SubscriptionError status={subscriptionStatus} />;
+  }
+  
+  // Get business details only if subscription is active
   const business = await getBusinessForReview(resolvedParams.id);
 
   if (!business) {

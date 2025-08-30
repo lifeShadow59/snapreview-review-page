@@ -154,11 +154,14 @@ export async function POST(
       client.release();
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error tracking copy:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace';
+    
     console.error("Error details:", {
-      message: error?.message || 'Unknown error',
-      stack: error?.stack || 'No stack trace',
+      message: errorMessage,
+      stack: errorStack,
       businessId: businessId || 'undefined',
       language_code: language_code || 'undefined'
     });
@@ -166,11 +169,11 @@ export async function POST(
     // Return error details for debugging
     return NextResponse.json({
       success: false,
-      error: error?.message || 'Unknown error occurred',
+      error: errorMessage,
       details: {
         businessId: businessId || 'undefined',
         language_code: language_code || 'undefined',
-        errorType: error?.constructor?.name || 'Unknown'
+        errorType: error instanceof Error ? error.constructor.name : 'Unknown'
       },
       analytics: {
         totalCopies: 0,
