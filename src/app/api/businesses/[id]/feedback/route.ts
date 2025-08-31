@@ -24,7 +24,7 @@ export async function GET(
 
     // Get 3 random feedbacks for the business, optionally filtered by language
     let query = `
-      SELECT feedback 
+      SELECT id, feedback 
       FROM business_feedbacks 
       WHERE business_id = $1
     `;
@@ -49,11 +49,80 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { feedbacks: result.rows.map(row => row.feedback) },
+      { 
+        feedbacks: result.rows.map(row => ({
+          id: row.id,
+          text: row.feedback
+        }))
+      },
       { status: 200 }
     );
   } catch (error) {
     console.error("Error fetching business feedback:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const resolvedParams = await params;
+    const businessId = resolvedParams.id;
+    const { feedbackId } = await request.json();
+
+    // Validate business ID format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(businessId)) {
+      return NextResponse.json(
+        { error: "Invalid business ID format" },
+        { status: 400 }
+      );
+    }
+
+    if (!feedbackId) {
+      return NextResponse.json(
+        { error: "Feedback ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Delete the specific feedback
+    const deleteQuery = `
+      DELETE FROM business_feedbacks 
+      WHERE id = $1 AND business_id = $2
+      RETURNING id, feedback
+    `;
+
+    const result = await pool.query(deleteQuery, [feedbackId, businessId]);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: "Feedback not found or already deleted" },
+        { status: 404 }
+      );
+    }
+
+    const deletedFeedback = result.rows[0];
+
+    return NextResponse.json(
+      { 
+        success: true,
+        message: "Feedback deleted successfully",
+        deletedFeedback: {
+          id: deletedFeedback.id,
+          text: deletedFeedback.feedback
+        }
+      },
+      { status: 200 }
+    );
+
+  } catch (error) {
+    console.error("Error deleting feedback:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -88,14 +88,20 @@ export async function POST(
       // The trigger will automatically update the total_copy_count in business_metrics table
       console.log("Trigger should have updated business_metrics table");
 
-      // Optional: Delete feedback from storage if feedback_id provided
+      // Optional: Delete feedback from business_feedbacks if feedback_id provided
       if (feedback_id) {
-        console.log("Deleting feedback from storage:", feedback_id);
+        console.log("Deleting feedback from business_feedbacks:", feedback_id);
         const deleteFeedbackQuery = `
-          DELETE FROM feedback_storage 
+          DELETE FROM business_feedbacks 
           WHERE id = $1 AND business_id = $2
+          RETURNING id, feedback
         `;
-        await client.query(deleteFeedbackQuery, [feedback_id, businessId]);
+        const deleteResult = await client.query(deleteFeedbackQuery, [feedback_id, businessId]);
+        if (deleteResult.rows.length > 0) {
+          console.log("Successfully deleted feedback:", deleteResult.rows[0]);
+        } else {
+          console.log("No feedback found to delete with ID:", feedback_id);
+        }
       }
 
       // Get total analytics for response

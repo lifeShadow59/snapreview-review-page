@@ -17,8 +17,14 @@ interface LanguagePreference {
 
 type Language = 'english' | 'hindi' | 'gujarati';
 
+interface FeedbackItem {
+  id: number;
+  text: string;
+}
+
 export default function FeedbackGenerator({ business }: { business: Business }) {
   const [currentFeedback, setCurrentFeedback] = useState("Great service and excellent experience! Highly recommended.");
+  const [currentFeedbackId, setCurrentFeedbackId] = useState<number | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('english');
   const [selectedLanguageCode, setSelectedLanguageCode] = useState<string>('en');
   const [availableLanguages, setAvailableLanguages] = useState<LanguagePreference[]>([]);
@@ -77,7 +83,8 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
         if (dbResponse.ok && dbData.feedbacks && dbData.feedbacks.length > 0) {
           // Use random feedback from database for the selected language
           const randomFeedback = dbData.feedbacks[Math.floor(Math.random() * dbData.feedbacks.length)];
-          setCurrentFeedback(randomFeedback);
+          setCurrentFeedback(randomFeedback.text);
+          setCurrentFeedbackId(randomFeedback.id);
         } else {
           // Generate new feedback if no database feedback exists
           const response = await fetch(`/api/businesses/${business.id}/generate-live-feedback`, {
@@ -97,6 +104,7 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
 
           if (response.ok && data.feedback) {
             setCurrentFeedback(data.feedback);
+            setCurrentFeedbackId(null); // Generated feedback doesn't have an ID
           } else {
             throw new Error('Failed to generate initial feedback');
           }
@@ -272,7 +280,8 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
       // Track the copy action (async, don't wait for it)
       console.log('Sending copy tracking request with data:', {
         language_code: selectedLanguageCode,
-        business_id: business.id
+        business_id: business.id,
+        feedback_id: currentFeedbackId
       });
       
       fetch(`/api/businesses/${business.id}/track-copy`, {
@@ -281,7 +290,8 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          language_code: selectedLanguageCode
+          language_code: selectedLanguageCode,
+          feedback_id: currentFeedbackId // Include feedback ID for deletion
         }),
       })
       .then(response => {
