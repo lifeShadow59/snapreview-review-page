@@ -222,7 +222,8 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
       if (dbResponse.ok && dbData.feedbacks && dbData.feedbacks.length > 0) {
         // Use random feedback from database for the selected language
         const randomFeedback = dbData.feedbacks[Math.floor(Math.random() * dbData.feedbacks.length)];
-        setCurrentFeedback(randomFeedback);
+        setCurrentFeedback(randomFeedback.text);
+        setCurrentFeedbackId(randomFeedback.id);
         return; // Exit early, no need to generate new feedback
       }
     } catch (error) {
