@@ -1,13 +1,15 @@
 "use client";
 
 import Image from 'next/image';
-import { SubscriptionStatus } from '@/lib/subscription';
+import type { SubscriptionStatus } from '@/lib/subscription';
+
 
 interface SubscriptionErrorProps {
   status: SubscriptionStatus;
+  paymentUrl?: string;
 }
 
-export default function SubscriptionError({ status }: SubscriptionErrorProps) {
+export default function SubscriptionError({ status, paymentUrl }: SubscriptionErrorProps) {
   const getErrorIcon = () => {
     switch (status.subscriptionStatus) {
       case 'cancelled':
@@ -110,6 +112,17 @@ export default function SubscriptionError({ status }: SubscriptionErrorProps) {
                 {getActionMessage()}
               </p>
             </div>
+            {/* Action Button: allow business to go to payment page to reactivate */}
+            {paymentUrl && (
+              <div className="mt-4 text-center">
+                <a
+                  href={paymentUrl}
+                  className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Pay now to active QR Code
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
@@ -119,25 +132,27 @@ export default function SubscriptionError({ status }: SubscriptionErrorProps) {
           <p className="text-sm text-blue-700 mb-2">
             If you believe this is an error, please contact:
           </p>
-          <div className="text-sm text-blue-700">
+            <div className="text-sm text-blue-700">
             <p>📧 support@snapreview.ai</p>
-            <p>🌐 www.snapreview.ai</p>
+              <a href="https://snapreview.ai" target="_blank" rel="noopener noreferrer">🌐 snapreview.ai</a>
           </div>
         </div>
 
         {/* Footer */}
         <footer className="text-center">
           <div className="flex items-center justify-center mb-2">
-            <Image 
-              src="/logo-design-5-modern-geometric.svg" 
-              alt="SnapReview.ai" 
-              width={150}
-              height={45}
-              className="h-10 w-auto"
-            />
+            <a href="https://snapreview.ai" target="_blank" rel="noopener noreferrer">
+              <Image 
+                src="/logo-design-5-modern-geometric.svg" 
+                alt="SnapReview.ai" 
+                width={150}
+                height={45}
+                className="h-10 w-auto"
+              />
+            </a>
           </div>
           <p className="text-xs text-gray-500">
-            Digital review management for modern businesses
+            AI review management for modern businesses
           </p>
         </footer>
       </div>

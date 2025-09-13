@@ -375,7 +375,7 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
       {/* Controls Section */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mt-6">
         {/* Left Side - Language Selection */}
-        <div className="flex flex-col space-y-3 w-full sm:w-1/2">
+        {/* <div className="flex flex-col space-y-3 w-full sm:w-1/2">
           <h3 className="text-sm font-semibold text-gray-800 mb-1">Language</h3>
           <div className="flex sm:flex-col gap-3">
             {availableLanguages.map((lang) => (
@@ -393,7 +393,7 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
               </button>
             ))}
           </div>
-        </div>
+        </div> */}
 
         {/* Right Side - Action Buttons */}
         <div className="flex flex-col space-y-3 w-full sm:w-1/2">

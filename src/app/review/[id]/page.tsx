@@ -49,7 +49,12 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
 
   // If subscription is not active, show error page
   if (!subscriptionStatus.isActive) {
-    return <SubscriptionError status={subscriptionStatus} />;
+    // Build payment URL: prefer NEXT_PUBLIC_APP_DOMAIN if set, otherwise relative path
+  const domain = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const paymentPath = `/businesses/${resolvedParams.id}/payment`;
+  const paymentUrl = `${domain.replace(/\/$/, '')}${paymentPath}`;
+
+  return <SubscriptionError status={subscriptionStatus} paymentUrl={paymentUrl} />;
   }
 
   // Get business details only if subscription is active
@@ -105,7 +110,7 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
               />
             </div>
             <p className="text-xs text-gray-500 px-2">
-              Digital review management for modern businesses
+              AI review management for modern businesses
             </p>
           </div>
         </div>

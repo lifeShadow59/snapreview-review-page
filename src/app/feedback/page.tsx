@@ -69,27 +69,58 @@ export default function FeedbackPage() {
   };
 
   const copyReview = async () => {
+    // Helper: send tracking/delete request with timeout so redirect isn't blocked
+    const postTrackCopy = async (reviewText: string, language: string) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1200); // 1.2s timeout
+      try {
+        await fetch('/api/track-copy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ review: reviewText, language }),
+          signal: controller.signal
+        });
+      } catch (e) {
+        // swallow errors — tracking is best-effort
+        console.warn('track-copy request failed or timed out', e);
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
     try {
-      await navigator.clipboard.writeText(currentReview);
+      // Copy to clipboard (modern API)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(currentReview);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = currentReview;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-99999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      // trigger backend delete/tracking but don't block the UX for long
+      postTrackCopy(currentReview, selectedLanguage);
+
+      // show visual confirmation
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
-      
-      // Redirect to Google Review
+
+      // Redirect to Google Review in a new tab shortly after copy
       setTimeout(() => {
         window.open(googleReviewUrl, '_blank');
       }, 500);
     } catch (error) {
-      console.error('Failed to copy review:', error);
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = currentReview;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-      
+      console.error('Failed to copy review (and fallback):', error);
+      // still try to notify backend even if copy fails
+      postTrackCopy(currentReview, selectedLanguage);
+      // open google review anyway
       setTimeout(() => {
         window.open(googleReviewUrl, '_blank');
       }, 500);
@@ -139,7 +170,7 @@ export default function FeedbackPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Language Selection */}
           <div>
-            <div className="space-y-4">
+            {/* <div className="space-y-4">
               {languages.map((language) => (
                 <button
                   key={language.code}
@@ -153,7 +184,7 @@ export default function FeedbackPage() {
                   {language.label}
                 </button>
               ))}
-            </div>
+            </div> */}
           </div>
 
           {/* Action Buttons */}
@@ -191,7 +222,7 @@ export default function FeedbackPage() {
               />
             </div>
             <p className="text-xs text-gray-500 px-2">
-              Digital review management for modern businesses
+              AI review management for modern businesses
             </p>
           </div>
         </div>

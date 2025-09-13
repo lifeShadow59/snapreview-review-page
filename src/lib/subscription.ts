@@ -6,6 +6,7 @@ export interface SubscriptionStatus {
   subscriptionStatus: string;
   subscriptionPlan: string;
   expiresAt: Date | null;
+  trialEndsAt?: Date | null;
   businessName: string;
   reason?: string;
 }
@@ -17,7 +18,7 @@ export async function checkBusinessSubscription(businessId: string): Promise<Sub
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'businesses' 
-      AND column_name IN ('subscription_status', 'qr_codes_enabled', 'subscription_expires_at', 'subscription_plan')
+      AND column_name IN ('subscription_status', 'qr_codes_enabled', 'trial_ends_at')
     `;
     
     const columnCheck = await pool.query(columnCheckQuery);
@@ -36,11 +37,8 @@ export async function checkBusinessSubscription(businessId: string): Promise<Sub
     if (existingColumns.includes('qr_codes_enabled')) {
       query += `, b.qr_codes_enabled`;
     }
-    if (existingColumns.includes('subscription_expires_at')) {
-      query += `, b.subscription_expires_at`;
-    }
-    if (existingColumns.includes('subscription_plan')) {
-      query += `, b.subscription_plan`;
+    if (existingColumns.includes('trial_ends_at')) {
+      query += `, b.trial_ends_at`;
     }
     
     query += ` FROM businesses b WHERE b.id = $1`;
@@ -82,45 +80,65 @@ export async function checkBusinessSubscription(businessId: string): Promise<Sub
         subscriptionStatus: 'active',
         subscriptionPlan: 'basic',
         expiresAt: null,
+        trialEndsAt: null,
         businessName: business.name,
         reason: undefined
       };
     }
 
     // Check subscription status
-    const activeStatuses = ['active', 'trial'];
     const subscriptionStatus = business.subscription_status || 'active';
-    const isSubscriptionActive = activeStatuses.includes(subscriptionStatus);
+    let isSubscriptionActive = false;
+    isSubscriptionActive = new Date() <= new Date(business.trial_ends_at);
     
-    // Check if subscription has expired
-    let isExpired = false;
-    if (business.subscription_expires_at) {
-      isExpired = new Date() > new Date(business.subscription_expires_at);
-    }
+    // if (subscriptionStatus === 'active') {
+    //   isSubscriptionActive = true;
+    // } else if (subscriptionStatus === 'trial') {
+    //   console.log("trial_ends_at:", business.trial_ends_at);
+    //   // Trial is only active if trial_ends_at exists and is in the future
+    //   if (existingColumns.includes('trial_ends_at') && business.trial_ends_at) {
+    //     isSubscriptionActive = new Date() <= new Date(business.trial_ends_at);
+    //   } else {
+    //     // If trial_ends_at is missing, treat trial as inactive to be safe
+    //     isSubscriptionActive = false;
+    //   }
+    // } else {
+    //   isSubscriptionActive = false;
+    // }
+    // isSubscriptionActive = true; // TEMP OVERRIDE FOR TESTING
+    // // Check if subscription has expired
+    // let isExpired = false;
+    // if (business.subscription_expires_at) {
+    //   isExpired = new Date() > new Date(business.subscription_expires_at);
+    // }
 
     // Check QR codes specifically enabled (default to true if column doesn't exist)
-    const qrCodesEnabled = existingColumns.includes('qr_codes_enabled') 
-      ? business.qr_codes_enabled === true 
-      : true;
+    // const qrCodesEnabled = existingColumns.includes('qr_codes_enabled') 
+    //   ? business.qr_codes_enabled === true 
+    //   : true;
 
     // Determine overall status
-    const isActive = isSubscriptionActive && !isExpired && qrCodesEnabled;
+    const isActive = isSubscriptionActive;// && qrCodesEnabled;
 
     let reason = '';
     if (!isSubscriptionActive) {
-      reason = `Subscription is ${subscriptionStatus}`;
-    } else if (isExpired) {
-      reason = 'Subscription has expired';
-    } else if (!qrCodesEnabled) {
-      reason = 'QR codes are disabled for this business';
-    }
+      if (subscriptionStatus === 'trial') {
+        reason = 'Trial has ended or is invalid';
+      } else {
+        reason = `Subscription is ${subscriptionStatus}`;
+      }
+    } 
+    // else if (!qrCodesEnabled) {
+    //   reason = 'QR codes are disabled for this business';
+    // }
 
     return {
       isActive,
-      qrCodesEnabled,
+      qrCodesEnabled:true,
       subscriptionStatus: subscriptionStatus,
       subscriptionPlan: business.subscription_plan || 'basic',
       expiresAt: business.subscription_expires_at || null,
+      trialEndsAt: business.trial_ends_at || null,
       businessName: business.name,
       reason: reason || undefined
     };

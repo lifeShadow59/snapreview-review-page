@@ -73,3 +73,14 @@
   - Add database connection pooling for analytics operations
   - Write performance tests to ensure sub-2 second feedback generation time
   - _Requirements: 3.1, 4.2_
+
+- [x] 11. Implement auto-feedback generation system
+  - Create background service to automatically generate 20 feedbacks when count < 5 per language
+  - Add language_code column to business_feedbacks table with proper indexing
+  - Implement cron job API endpoint with authentication for external scheduling
+  - Create standalone Node.js script for system cron job integration
+  - Add AI-powered feedback generation with template fallback mechanism
+  - Implement batch processing with delays to avoid API rate limits
+  - Add comprehensive error handling and logging for monitoring
+  - Create documentation and setup instructions for deployment
+  - _Requirements: Auto-feedback generation for businesses with insufficient feedback_

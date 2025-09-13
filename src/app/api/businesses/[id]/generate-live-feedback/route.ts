@@ -53,6 +53,7 @@ export async function POST(
     const resolvedParams = await params;
     const businessId = resolvedParams.id;
     const { language, language_code, businessName, businessType, businessTags } = requestBody;
+    console.log("Received request body:", requestBody);
     
     // Support both old 'language' and new 'language_code' parameters for backward compatibility
     const selectedLanguage = language_code || language;
@@ -76,8 +77,8 @@ export async function POST(
 
     // Create human-like, natural language prompts for 2-4 sentences
     const languagePrompts: Record<string, string> = {
-      english: `Write a genuine, human customer review for ${businessName}${businessType ? ` (${businessType})` : ''}${businessTags ? ` focusing on: ${businessTags}` : ''}. Make it sound like a real person wrote it - use natural language, personal experiences, and specific details. Write 2-4 sentences. Be conversational and authentic. Don't make it sound AI-generated. Use varied sentence structures and personal touches like "I went there last week" or "My family loves this place". IMPORTANT: Write ONLY in English.`,
-      en: `Write a genuine, human customer review for ${businessName}${businessType ? ` (${businessType})` : ''}${businessTags ? ` focusing on: ${businessTags}` : ''}. Make it sound like a real person wrote it - use natural language, personal experiences, and specific details. Write 2-4 sentences. Be conversational and authentic. Don't make it sound AI-generated. Use varied sentence structures and personal touches like "I went there last week" or "My family loves this place". IMPORTANT: Write ONLY in English.`,
+      english: `Write a genuine, human customer review for ${businessName}${businessType ? ` (${businessType})` : ''}${businessTags ? ` focusing on: ${businessTags}` : ''}. Make it sound like a real person wrote it - use natural language, personal experiences, and specific details. Write 1-3 sentences. Be conversational and authentic. Don't make it sound AI-generated. Use varied sentence structures and personal touches like "I went there last week", "in some feedback add location related details like, near by or at walking distance for services based comapany". IMPORTANT: Write ONLY in English.`,
+      en: `Write a genuine, human customer review for ${businessName}${businessType ? ` (${businessType})` : ''}${businessTags ? ` focusing on: ${businessTags}` : ''}. Make it sound like a real person wrote it - use natural language, personal experiences, and specific details. Write 1-3 sentences. Be conversational and authentic. Don't make it sound AI-generated. Use varied sentence structures and personal touches like "I went there last week", "in some feedback add location related details like, near by or at walking distance for services based comapany". IMPORTANT: Write ONLY in English.`,
 
       hindi: `${businessName}${businessType ? ` (${businessType})` : ''} के लिए एक सच्ची, मानवीय ग्राहक समीक्षा लिखें${businessTags ? ` इन पर ध्यान दें: ${businessTags}` : ''}। इसे ऐसे लिखें जैसे कोई वास्तविक व्यक्ति ने लिखा हो - प्राकृतिक भाषा, व्यक्तिगत अनुभव और विशिष्ट विवरण का उपयोग करें। 2-4 वाक्य लिखें। बातचीत की तरह और प्रामाणिक हों। इसे AI द्वारा बनाया गया न लगने दें। विविध वाक्य संरचनाओं और व्यक्तिगत स्पर्श का उपयोग करें जैसे "मैं पिछले हफ्ते वहां गया था" या "मेरे परिवार को यह जगह पसंद है"। महत्वपूर्ण: केवल हिंदी में लिखें।`,
       hi: `${businessName}${businessType ? ` (${businessType})` : ''} के लिए एक सच्ची, मानवीय ग्राहक समीक्षा लिखें${businessTags ? ` इन पर ध्यान दें: ${businessTags}` : ''}। इसे ऐसे लिखें जैसे कोई वास्तविक व्यक्ति ने लिखा हो - प्राकृतिक भाषा, व्यक्तिगत अनुभव और विशिष्ट विवरण का उपयोग करें। 2-4 वाक्य लिखें। बातचीत की तरह और प्रामाणिक हों। इसे AI द्वारा बनाया गया न लगने दें। विविध वाक्य संरचनाओं और व्यक्तिगत स्पर्श का उपयोग करें जैसे "मैं पिछले हफ्ते वहां गया था" या "मेरे परिवार को यह जगह पसंद है"। महत्वपूर्ण: केवल हिंदी में लिखें।`,
@@ -95,122 +96,112 @@ export async function POST(
       );
     }
 
+    // Build messages array for chat APIs
+    const messages = [
+      { role: 'system', content: 'You are a real customer writing an authentic review. Keep responses 2-4 sentences, conversational and natural.' },
+      { role: 'user', content: `Please write a human-like customer review for ${businessName}${businessType ? ` (${businessType})` : ''}${businessTags ? ` focusing on: ${businessTags}` : ''}. ${prompt}` }
+    ];
+
     // Call OpenRouter API with timeout for faster response
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout to allow API to respond
 
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
-        'X-Title': 'SnapReview.ai Feedback Generator'
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-4o-mini', // Fast and efficient model
-        messages: [
-          {
-            role: 'system',
-            content: `You are a real customer writing an authentic review. You must respond ONLY in the requested language. Do not mix languages or provide translations. Make it unique, personal, and human-like. Vary your writing style and avoid repetitive patterns. Include specific details and personal touches.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.9, // High temperature for more creativity and uniqueness
-        max_tokens: 150, // Allow for 2-4 sentences
-        top_p: 0.95,
-        frequency_penalty: 0.5,
-        presence_penalty: 0.2
-      }),
-      signal: controller.signal
-    });
+    // Use OpenRouter iff an API key is explicitly configured; otherwise use OpenAI.
+    // This comments out the old OpenRouter request and substitutes an OpenAI call.
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
-    clearTimeout(timeoutId);
-
-    if (!openRouterResponse.ok) {
-      const errorData = await openRouterResponse.text();
-      console.error('OpenRouter API error:', errorData);
-      throw new Error(`OpenRouter API error: ${openRouterResponse.status}`);
-    }
-
-    const data = await openRouterResponse.json();
-
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Invalid response from OpenRouter API');
-    }
-
-    const generatedFeedback = data.choices[0].message.content.trim();
-
-    // Comment out Gemini code for reference
-    /*
-    // GEMINI API call (commented out)
-    const geminiApiKey = 'AIzaSyBPM13pTRZFqdB_LvVVTceiWn_evIVNf_8';
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are a real customer writing an authentic review. ${prompt} Make it unique, personal, and human-like. Vary your writing style and avoid repetitive patterns. Include specific details and personal touches.`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.9,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 150,
-          stopSequences: []
+    if (openRouterApiKey) {
+      // Make a request to OpenRouter and extract generated text
+      const openRouterResp = await fetch('https://api.openrouter.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterApiKey}`,
+          'Content-Type': 'application/json'
         },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH", 
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
-      }),
-      signal: controller.signal
-    });
-    */
+        body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages, stream: false }),
+        signal: controller.signal
+      });
 
-    // Clean up the feedback (remove quotes, extra formatting)
-    const cleanFeedback = generatedFeedback
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .trim();
+      if (!openRouterResp.ok) {
+        const errText = await openRouterResp.text();
+        console.error('OpenRouter API error:', errText);
+        throw new Error(`OpenRouter API error: ${openRouterResp.status}`);
+      }
 
-    // Language validation - check if response is in correct language
-    const isValidLanguage = validateLanguage(cleanFeedback, selectedLanguage);
+      const data = await openRouterResp.json();
+      const generatedFeedback = (data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.text ?? '').trim();
 
-    if (!isValidLanguage) {
-      // If language validation fails, use template fallback
-      throw new Error('Generated content not in requested language');
+      // Clean up the feedback (remove quotes, extra formatting)
+      const cleanFeedback = String(generatedFeedback)
+        .replace(/^['"]|['"]$/g, '') // Remove surrounding quotes
+        .replace(/\n+/g, ' ') // Replace newlines with spaces
+        .trim();
+
+      // Language validation - check if response is in correct language
+      const isValidLanguage = validateLanguage(cleanFeedback, selectedLanguage);
+
+      if (!isValidLanguage || !cleanFeedback) {
+        throw new Error('Generated content not in requested language');
+      }
+
+      return NextResponse.json(
+        { feedback: cleanFeedback },
+        { status: 200 }
+      );
+
+    } else {
+      // Use OpenAI when OpenRouter credentials are not provided
+      const openAiKey = process.env.OPENAI_API;
+      if (!openAiKey) {
+        console.error('No OpenAI key found in environment (process.env.OPENAI_API).');
+        throw new Error('No OpenAI API key configured');
+      }
+
+      const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openAiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini', // adjust model as needed
+          messages, // reuse messages constructed earlier in this file
+          max_tokens: 800,
+          temperature: 0.7,
+          stream: false
+        })
+      });
+
+      if (!openaiResp.ok) {
+        const errText = await openaiResp.text();
+        console.error('OpenAI API error:', errText);
+        throw new Error(`OpenAI API error: ${openaiResp.status}`);
+      }
+
+      const data = await openaiResp.json();
+      // Map OpenAI response to the same structure the rest of the handler expects.
+      // If prior code used `data.choices[0].message.content`, keep that mapping.
+      const generatedText = data?.choices?.[0]?.message?.content ?? '';
+
+      // Clean up the feedback (remove quotes, extra formatting)
+      const cleanFeedback = generatedText
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\n+/g, ' ') // Replace newlines with spaces
+        .trim();
+
+      // Language validation - check if response is in correct language
+      const isValidLanguage = validateLanguage(cleanFeedback, selectedLanguage);
+
+      if (!isValidLanguage) {
+        // If language validation fails, use template fallback
+        throw new Error('Generated content not in requested language');
+      }
+
+      return NextResponse.json(
+        { feedback: cleanFeedback },
+        { status: 200 }
+      );
     }
-
-    return NextResponse.json(
-      { feedback: cleanFeedback },
-      { status: 200 }
-    );
 
   } catch (error) {
     console.error("Error generating live feedback:", error);
