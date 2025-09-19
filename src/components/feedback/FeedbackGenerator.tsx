@@ -429,7 +429,7 @@ export default function FeedbackGenerator({ business }: { business: Business }) 
       <div className="mt-8 pt-6 border-t border-gray-200">
         <p className="text-xs text-gray-500 leading-relaxed text-center">
           Click &quot;Copy Review&quot; to copy the feedback to your clipboard and be redirected to Google Reviews.
-          Use &quot;Shuffle Review&quot; to generate a new review in your selected language.
+          Use &quot;Change Review&quot; to generate a new review in your selected language.
         </p>
       </div>
     </div>
