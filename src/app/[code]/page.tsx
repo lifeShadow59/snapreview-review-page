@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
 import pool from '@/lib/db';
 
-interface QRcodePageProps {
+interface CodePageProps {
   params: Promise<{ code: string }>;
 }
 
-export default async function QRcodePage({ params }: QRcodePageProps) {
+export default async function CodePage({ params }: CodePageProps) {
   const resolvedParams = await params;
   const code = resolvedParams.code;
 
@@ -16,7 +16,7 @@ export default async function QRcodePage({ params }: QRcodePageProps) {
       'SELECT business_id FROM public.qr_codes WHERE LOWER(code) = LOWER($1) LIMIT 1;',
       [code]
     );
-    
+
     // fallback to barcodes table
     if (!result.rows[0]) {
       result = await pool.query(
@@ -28,7 +28,7 @@ export default async function QRcodePage({ params }: QRcodePageProps) {
     businessId = result.rows[0]?.business_id;
   } catch (error) {
     // Log DB lookup error and fall through to not-found redirect below
-    console.error("QR lookup DB error for code:", code, error);
+    console.error('QR lookup DB error for code:', code, error);
   }
 
   // perform redirect outside of try/catch to avoid catching Next's RedirectError
